@@ -1,62 +1,132 @@
-# chat
+# 在线网页端轻量 IM 聊天室
 
-Simple plug & play real-time JavaScript chat implemented using Socket.io.
+这是一个基于原开源 `m1k1o/chat` 项目改造的轻量网页端 IM 聊天室。项目保留了原本简单、即开即用、基于 Socket.IO 实时通信的特点，并在此基础上完成了中文化界面和多聊天室能力升级。
 
-Where simplicity meets usability:
+适合用于临时在线沟通、项目讨论、轻量内部协作等场景。
 
-* No user accounts - just enter nickname and join.
-* No history saved by default - only logged-in users can see recent history.
-* No configuration.
-* Only one room - you can't create any other rooms or write PM to others.
-* Files sharing is possible - without storing any data on server.
-* Emojis - just a few of them.
+## 主要功能
 
-![screenshot](https://raw.githubusercontent.com/m1k1o/chat/master/screenshot.png)
+- 全中文界面：登录、聊天、创建沟通组、系统提示等界面文字均已汉化。
+- 无账号体系：用户只需输入昵称即可进入聊天。
+- 多 IM 沟通组：支持创建多个聊天组，并在左侧菜单中切换。
+- 默认聊天组：系统默认聊天组为“IM 聊天组”。
+- 在线人数展示：每个聊天组名称后显示当前人数，例如 `项目讨论组 (3)`。
+- 自动销毁空房间：某个聊天组内无人后，系统会自动移除该聊天组。
+- 不保存聊天记录：聊天记录不落库、不持久化；切换房间或刷新后不会加载历史消息。
+- 文件分享：沿用原项目能力，支持通过拖拽发送文件数据。
+- 表情支持：沿用原项目内置表情功能。
 
-## docker
+页面右侧会固定提示：
+
+> 本系统仅供在线聊天使用，不保存任何聊天记录，请及时保存到本地。
+
+## 本次改造内容
+
+相较于原始开源项目，本仓库主要完成了以下改造：
+
+1. 全面汉化
+   - 将页面标题、登录弹窗、输入框、按钮、离线提示、错误提示等用户可见文案改为中文。
+   - 不保留中英文切换逻辑，系统默认中文。
+
+2. 多聊天室升级
+   - 原项目只有一个固定聊天室，所有用户只能在同一空间沟通。
+   - 现在支持用户创建新的 IM 沟通组。
+   - 左侧菜单展示当前存在的所有 IM 沟通组。
+   - 点击左侧聊天组即可切换到对应对话页面。
+   - 切换聊天室后聊天区会清空，不展示其他房间的消息。
+
+3. 房间生命周期
+   - 聊天组仅保存在服务端内存中。
+   - 当一个聊天组内没有任何在线用户时，系统会自动销毁该聊天组。
+   - 服务重启后，房间和聊天记录都会清空。
+
+4. 聊天记录策略调整
+   - 原项目 README 中提到可通过缓存展示近期历史消息。
+   - 当前版本按“在线临时沟通”定位处理，不保存任何聊天记录，也不向新用户推送历史消息。
+
+5. 启动脚本兼容
+   - 将 `npm start` 从 `nodejs server.js` 调整为 `node server.js`，兼容常见本地 Node.js 环境。
+
+## 技术栈
+
+- Node.js
+- Express
+- Socket.IO
+- 原生 HTML / CSS / JavaScript
+
+## 本地运行
+
+环境要求：
+
+- Node.js
+- npm
+
+安装依赖：
 
 ```sh
-docker run -d \
-	--name chat \
-	-p 80:80 \
-	m1k1o/chat:latest
+npm install
 ```
 
-## docker-compose
+启动服务：
 
-```yml
-services:
-  chat:
-    image: m1k1o/chat:latest
-    restart: unless-stopped
-    ports:
-      - 80:80
-    environment:
-      CACHE_SIZE: 50 # optional: message count stored. Defaults to zero.
-    healthcheck:
-      interval: 60s
-      retries: 10
-      test: ["CMD", "curl", "http://localhost"]
-      start_period: 5s
-      timeout: 10s
- ```
+```sh
+npm start 8099
+```
 
-## Cache
+也可以直接运行：
 
-`CACHE_SIZE` is optional and determines the number of messages stored on the server. When new users join (or reconnect), that cache is sent to give a brief history. This defaults to zero, but can be set as an environment variable.
+```sh
+node server.js 8099
+```
 
-If you're not running in a docker container, you can make a `.env` file in the project root with `CACHE_SIZE=50` in.
+启动后访问：
 
-Note: This cache will be text or images so be mindful not to set it too high as it could be n images sent to every new user.
+```text
+http://127.0.0.1:8099
+```
 
-## How to install
+如果不传端口，服务默认使用 `8090`：
 
-Requirements: `nodejs`, `npm`
+```sh
+npm start
+```
 
-1. Clone this repository.
-	- `git clone https://github.com/m1k1o/chat .`
-2. Install server dependencies.
-	- `npm install`
-3. Run server (default port is `80`).
-	- `npm start [custom_port]`
-4. Done, visit your chat in browser.
+## Docker 运行
+
+如果使用 Docker，可以按需自行构建镜像：
+
+```sh
+docker build -t chat-im .
+docker run -d \
+	--name chat-im \
+	-p 8099:8090 \
+	chat-im
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:8099
+```
+
+## 使用说明
+
+1. 打开网页后输入昵称进入系统。
+2. 默认进入“IM 聊天组”。
+3. 点击左侧“创建新的 IM 沟通组”。
+4. 输入聊天组名称并创建。
+5. 在左侧聊天组列表中点击不同聊天组即可切换。
+6. 聊天组名称后括号内数字表示当前在线人数。
+7. 聊天内容不会保存，请按需自行复制或保存重要信息。
+
+## 注意事项
+
+- 本系统定位为轻量在线聊天工具，不适合保存正式业务记录。
+- 聊天记录不会持久化到数据库或文件。
+- 房间数据保存在服务端内存中，服务重启后会丢失。
+- 同一时间不允许多个用户使用完全相同的昵称。
+- 文件发送沿用浏览器内存传输方式，不会保存在服务端。
+
+## 来源说明
+
+本项目基于开源项目 `m1k1o/chat` 改造，保留其轻量实时聊天的核心实现，并针对中文在线 IM 沟通场景进行了界面和房间能力增强。
