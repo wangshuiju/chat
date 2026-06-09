@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
 	<meta charset="utf-8">
-	<title>Chat</title>
+	<title>IM 聊天组</title>
 
 	<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
@@ -11,20 +11,55 @@
 	<link href="static/styles/dark.css" rel="stylesheet" type="text/css">
 </head>
 <body>
-	<div class="chat">
-		<div id="chat-box" class="chat-box">
-			<div id="offline"><span class="big">Server is offline.</span><br />Sorry for that.</div>
-			<ul id="msgs" class="msgs"></ul>
-			<ul id="typing" class="msgs"></ul>
-		</div>
-		<div class="chat-form">
-			<ul id="emic" style="display:none;"></ul>
-			<button id="emic_btn">
-				<img src="static/emic/white-smiling-face.png" width="20px" height="20px" title="White Smiling Face">
-			</button>
-			<textarea id="form_input" class="form-control" data-user-id="2" placeholder="Type something ..." rows="1"></textarea>
-			<button id="send">Send</button>
-			<ul id="users"></ul>
+	<div class="app-shell">
+		<aside class="room-sidebar" aria-label="IM 沟通组">
+			<button id="create-room" class="create-room-btn" type="button">创建新的 IM 沟通组</button>
+			<div id="create-room-form" class="create-room-form" hidden>
+				<input id="room-name" type="text" maxlength="40" placeholder="请输入聊天组名称">
+				<p id="room-error"></p>
+				<div class="create-room-actions">
+					<button id="room-submit" type="button">创建</button>
+					<button id="room-cancel" type="button">取消</button>
+				</div>
+			</div>
+			<ul id="room-list" class="room-list"></ul>
+		</aside>
+
+		<main class="chat">
+			<header class="chat-header">
+				<h1 id="active-room-name">IM 聊天组</h1>
+				<div class="online-users">
+					<span>当前成员</span>
+					<ul id="users"></ul>
+				</div>
+			</header>
+			<div id="chat-box" class="chat-box">
+				<div id="offline"><span class="big">服务未连接</span><br />请稍后重试。</div>
+				<ul id="msgs" class="msgs"></ul>
+				<ul id="typing" class="msgs"></ul>
+			</div>
+			<div class="chat-form">
+				<ul id="emic" style="display:none;"></ul>
+				<button id="emic_btn" type="button" aria-label="选择表情">
+					<img src="static/emic/white-smiling-face.png" width="20" height="20" title="表情">
+				</button>
+				<textarea id="form_input" class="form-control" data-user-id="2" placeholder="请输入消息..." rows="1"></textarea>
+				<button id="send" type="button">发送</button>
+			</div>
+		</main>
+
+		<aside class="notice-panel">
+			<p>本系统仅供在线聊天使用，不保存任何聊天记录，请及时保存到本地。</p>
+		</aside>
+	</div>
+
+	<div id="login-modal" class="modal-backdrop" hidden>
+		<div class="login-panel">
+			<h2>进入 IM 聊天</h2>
+			<label for="login-nick">昵称</label>
+			<input id="login-nick" type="text" autocomplete="nickname" placeholder="请输入昵称">
+			<p id="login-error"></p>
+			<button id="login-submit" type="button">进入聊天</button>
 		</div>
 	</div>
 
@@ -32,7 +67,7 @@
 	<script type="text/javascript" src="static/scripts/emic.js"></script>
 	<script type="text/javascript" src="static/scripts/chat.js"></script>
 	<script type="text/javascript">
-		// optionally set own server where the client connects to
+		// 可按当前路径连接 Socket.IO 服务。
 		const socket = io(location.protocol + '//' + location.host, { path: location.pathname.replace(/\/$/, '') + '/socket.io/' })
 
 		Emic.init();

@@ -6,6 +6,18 @@ var Chat = {
 	msgs_list: document.getElementById("msgs"),
 	typing_list: document.getElementById("typing"),
 	users: document.getElementById("users"),
+	room_list: document.getElementById("room-list"),
+	create_room_btn: document.getElementById("create-room"),
+	create_room_form: document.getElementById("create-room-form"),
+	room_name: document.getElementById("room-name"),
+	room_error: document.getElementById("room-error"),
+	room_submit: document.getElementById("room-submit"),
+	room_cancel: document.getElementById("room-cancel"),
+	active_room_name: document.getElementById("active-room-name"),
+	login_modal: document.getElementById("login-modal"),
+	login_nick: document.getElementById("login-nick"),
+	login_error: document.getElementById("login-error"),
+	login_submit: document.getElementById("login-submit"),
 	textarea: document.getElementById("form_input"),
 	send_btn: document.getElementById("send"),
 
@@ -13,9 +25,11 @@ var Chat = {
 	is_online: false,
 	is_typing: false,
 	last_sent_nick: null,
+	current_room_id: null,
+	rooms: [],
 
 	original_title: document.title,
-	new_title: "New messages...",
+	new_title: "有新消息...",
 
 	scroll: function(){
 		setTimeout(function(){
@@ -162,6 +176,71 @@ var Chat = {
 		Chat.textarea.focus();
 	},
 
+	clear_room_view: function(){
+		Chat.msgs_list.innerText = '';
+		Chat.typing_list.innerText = '';
+		Chat.users.innerText = '';
+		Chat.user.objects = {};
+		Chat.typing.objects = {};
+		Chat.last_sent_nick = '';
+	},
+
+	create_room_event: function(){
+		Chat.room_error.innerText = '';
+		Chat.create_room_form.hidden = false;
+		Chat.room_name.focus();
+	},
+
+	submit_room_event: function(){
+		var name = Chat.room_name.value.trim();
+		if(name == ""){
+			Chat.room_error.innerText = "请输入聊天组名称。";
+			return;
+		}
+
+		Chat.socket.emit("create-room", {
+			name: name
+		});
+	},
+
+	cancel_room_event: function(){
+		Chat.room_name.value = '';
+		Chat.room_error.innerText = '';
+		Chat.create_room_form.hidden = true;
+	},
+
+	switch_room: function(roomId){
+		if(!roomId || roomId === Chat.current_room_id){
+			return;
+		}
+
+		Chat.socket.emit("join-room", {
+			roomId: roomId
+		});
+	},
+
+	render_rooms: function(data){
+		Chat.rooms = data.rooms || [];
+		Chat.room_list.innerText = '';
+
+		Chat.rooms.forEach(function(room){
+			var item = document.createElement('li');
+			var button = document.createElement('button');
+			button.type = 'button';
+			button.innerText = room.name + ' (' + room.count + ')';
+			button.onclick = function(){
+				Chat.switch_room(room.id);
+			};
+
+			if(room.id === Chat.current_room_id){
+				button.className = 'active';
+			}
+
+			item.appendChild(button);
+			Chat.room_list.appendChild(item);
+		});
+	},
+
 	typing: {
 		objects: {},
 
@@ -223,7 +302,9 @@ var Chat = {
 		const fromSelf = sessionStorage.nick == r.f;
 
 		// Notify user
-		Chat.notif.create(r.f, r.m);
+		if(!fromSelf){
+			Chat.notif.create(r.f, r.m);
+		}
 
 		var li = document.createElement('div');
 		li.id = r.id;
@@ -338,16 +419,27 @@ var Chat = {
 
 	force_login: function(fail){
 		if(typeof fail !== "undefined"){
-			alert(fail);
+			Chat.login_error.innerText = fail;
+		} else {
+			Chat.login_error.innerText = '';
 		}
 
-		var nick = prompt("Your nick:", sessionStorage.nick || localStorage.nick || "").trim();
-		if(typeof nick !== "undefined" && nick){
-			sessionStorage.nick = localStorage.nick = nick;
-			Chat.socket.emit("login", {
-				nick: nick
-			});
+		Chat.login_nick.value = sessionStorage.nick || localStorage.nick || "";
+		Chat.login_modal.hidden = false;
+		Chat.login_nick.focus();
+	},
+
+	login_event: function(){
+		var nick = Chat.login_nick.value.trim();
+		if(nick == ""){
+			Chat.login_error.innerText = "请输入昵称。";
+			return;
 		}
+
+		sessionStorage.nick = localStorage.nick = nick;
+		Chat.socket.emit("login", {
+			nick: nick
+		});
 	},
 
 	reload: function(){
@@ -363,7 +455,10 @@ var Chat = {
 
 		// Load all users
 		start: function(r){
-			Chat.users.innerText = '';
+			Chat.login_modal.hidden = true;
+			Chat.current_room_id = r.room.id;
+			Chat.active_room_name.innerText = r.room.name;
+			Chat.clear_room_view();
 
 			for(var user in r.users){
 				var nick = document.createElement('li');
@@ -371,19 +466,24 @@ var Chat = {
 				Chat.users.appendChild(nick);
 				Chat.user.objects[r.users[user]] = nick;
 			}
+
+			Chat.render_rooms({
+				rooms: r.rooms || Chat.rooms
+			});
+			Chat.cancel_room_event();
 		},
 
 		previous_messages: function(data){
-			console.log(`msgs: ${data}`)
-
-			data.msgs.forEach(element => {
-				Chat.new_msg(element)
-			});
+			Chat.clear_room_view();
 		},
 
 		// User joined room
 		enter: function(r){
 			console.log("User " + r.nick + " joined.");
+
+			if(Chat.user.objects.hasOwnProperty(r.nick)){
+				return;
+			}
 
 			var nick = document.createElement('li');
 			nick.innerText = r.nick;
@@ -413,10 +513,7 @@ var Chat = {
 		Chat.is_online = true;
 
 		document.getElementById('offline').style.display = "none";
-		Chat.msgs_list.innerText = '';
-		Chat.typing_list.innerText = '';
-		Chat.users.innerText = '';
-		Chat.last_sent_nick = '';
+		Chat.clear_room_view();
 
 		// force user to login
 		Chat.force_login();
@@ -428,9 +525,7 @@ var Chat = {
 		Chat.is_online = false;
 
 		document.getElementById('offline').style.display = "block";
-		Chat.msgs_list.innerText = '';
-		Chat.typing_list.innerText = '';
-		Chat.users.innerText = '';
+		Chat.clear_room_view();
 	},
 
 	init: function(socket){
@@ -472,6 +567,33 @@ var Chat = {
 
 		// On click send message
 		Chat.send_btn.onclick = Chat.send_event;
+		Chat.create_room_btn.onclick = Chat.create_room_event;
+		Chat.room_submit.onclick = Chat.submit_room_event;
+		Chat.room_cancel.onclick = Chat.cancel_room_event;
+		Chat.room_name.onkeydown = function(e){
+			var key = e.keyCode || window.event.keyCode;
+			if(key === 13){
+				Chat.submit_room_event();
+				return false;
+			}
+
+			if(key === 27){
+				Chat.cancel_room_event();
+				return false;
+			}
+
+			return true;
+		};
+		Chat.login_submit.onclick = Chat.login_event;
+		Chat.login_nick.onkeydown = function(e){
+			var key = e.keyCode || window.event.keyCode;
+			if(key === 13){
+				Chat.login_event();
+				return false;
+			}
+
+			return true;
+		};
 
 		// On enter send message
 		Chat.textarea.onkeydown = function(e){
@@ -496,6 +618,14 @@ var Chat = {
 		Chat.socket.on("force-login", Chat.force_login);
 		Chat.socket.on("typing", Chat.typing.event);
 		Chat.socket.on("new-msg", Chat.new_msg);
+		Chat.socket.on("room-list", Chat.render_rooms);
+		Chat.socket.on("room-error", function(message){
+			if(Chat.create_room_form.hidden){
+				alert(message);
+			} else {
+				Chat.room_error.innerText = message;
+			}
+		});
 
 		Chat.socket.on("previous-msg", Chat.user.previous_messages)
 		Chat.socket.on("start", Chat.user.start);
@@ -523,7 +653,7 @@ var Chat = {
 
 				// Max 10 MB
 				if(file.size > 10485760){
-					alert("Max size of file is 10MB");
+					alert("文件大小不能超过 10MB。");
 					return;
 				}
 
