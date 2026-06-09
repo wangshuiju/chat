@@ -53,11 +53,16 @@ a {
 	padding: 22px 18px;
 }
 
-.notice-panel p {
+.notice-panel ol {
 	margin: 0;
+	padding-left: 20px;
 	color: #5a4c37;
 	font-size: 14px;
 	line-height: 1.7;
+}
+
+.notice-panel li + li {
+	margin-top: 12px;
 }
 
 .create-room-btn,
@@ -392,7 +397,7 @@ a {
 
 .chat-form {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 44px 82px;
+	grid-template-columns: 44px minmax(0, 1fr) 82px;
 	gap: 8px;
 	align-items: end;
 	background: #ffffff;
@@ -554,7 +559,7 @@ a {
 	}
 
 	.chat-form {
-		grid-template-columns: minmax(0, 1fr) 42px 64px;
+		grid-template-columns: 42px minmax(0, 1fr) 64px;
 		padding: 10px 12px;
 	}
 
